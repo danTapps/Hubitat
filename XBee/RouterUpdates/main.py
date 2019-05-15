@@ -1,6 +1,7 @@
 import xbee
 import time
 import binascii
+import sys
 x = xbee.XBee() #Create an XBee object
 while True:
 	voltage = x.atcmd('%V')
@@ -14,3 +15,4 @@ while True:
 	time.sleep_ms(60000)
 	if x.wake_reason() is xbee.PIN_WAKE:
 		print("woke early on DTR toggle")
+		sys.exit()
