@@ -9,7 +9,7 @@ while True:
 	try:
 		xbee.transmit(xbee.ADDR_COORDINATOR, binascii.unhexlify(tx_req))
 	except:
-		print("err")
+		print("Error occured to send package, probably not connected to ZigBee network")
 	print("going to sleep now")
 	time.sleep_ms(60000)
 	if x.wake_reason() is xbee.PIN_WAKE:
