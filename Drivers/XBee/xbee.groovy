@@ -5,12 +5,20 @@ metadata {
         capability "Configuration"
         capability "Battery"
         capability "Presence Sensor"
+		capability "Switch"
+		command "disable"
+		command "enable"
     }
 
     preferences {
 
         input "fullVoltageValue", "enum", title:"Battery 100% mV:", required:true, defaultValue:3300, options:[3000:"3000 mV",3300:"3300 mV",3600:"3600 mV"]
         input "checkInterval", "enum", title:"Minutes elapsed until sensor is not present", required:true, defaultValue:3, options:[1:"1 Minute",2:"2 Minutes",3:"3 Minutes", 4:"4 Minutes",5:"5 Minutes"]
+		input "disabledMode", "enum", title: "When disabling sensor, set presence to:", description: "Tap to set",
+                    defaultValue:"auto", options: ["auto", "present", "not present"], displayDuringSetup: false
+        input "enabledMode", "enum", title: "When enabling sensor, set presence to:", description: "Tap to set",
+                    defaultValue:"auto", options: ["auto", "present", "not present"], displayDuringSetup: false
+		input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
 
@@ -140,3 +148,74 @@ def checkPresenceCallback() {
         handlePresenceEvent(false)
     }
 }
+def enable() {
+    // Force presence per user settings
+    if (logEnable)log.debug "Setting sensor presence to ${settings.enabledMode}"
+	sendEvent(name: "switch", value: "on", isStateChange: true)
+	if (settings.enabledMode && (settings.enabledMode != "auto")) {
+    	stopTimer()
+    	sendEvent(name: "presence", value: settings.enabledMode, translatable: true)
+        }
+    else if (settings.enabledMode && (settings.enabledMode == "auto"))
+	    startTimer()
+	// Enable the device and update the enabled status to reflect the new status
+	if (logEnable)log.debug "Enabling ${getLinkText(device)}"
+    if (device.currentValue("presence") == "present")
+		sendEvent(name: "enabled", value: "enabled-present", isStateChange: true)
+    else if (device.currentValue("presence") == "not present")
+		sendEvent(name: "enabled", value: "enabled-not present", isStateChange: true)
+}
+
+def enable() {
+    // Force presence per user settings
+    if (logEnable)log.debug "Setting sensor presence to ${settings.enabledMode}"
+	sendEvent(name: "switch", value: "on", isStateChange: true)
+	if (settings.enabledMode && (settings.enabledMode != "auto")) {
+    	stopTimer()
+    	sendEvent(name: "presence", value: settings.enabledMode, translatable: true)
+        }
+    else if (settings.enabledMode && (settings.enabledMode == "auto"))
+	    startTimer()
+	// Enable the device and update the enabled status to reflect the new status
+	if (logEnable)log.debug "Enabling ${getLinkText(device)}"
+    if (device.currentValue("presence") == "present")
+		sendEvent(name: "enabled", value: "enabled-present", isStateChange: true)
+    else if (device.currentValue("presence") == "not present")
+		sendEvent(name: "enabled", value: "enabled-not present", isStateChange: true)
+}
+
+def disable() {
+    // Force presence per user settings
+    if (logEnable)log.debug "Setting sensor presence to ${settings.disabledMode}"
+	sendEvent(name: "switch", value: "off", isStateChange: true)
+	if (settings.disabledMode && (settings.disabledMode != "auto")) {
+    	stopTimer()
+    	sendEvent(name: "presence", value: settings.disabledMode, translatable: true)
+        }
+    else if (settings.disabledMode && (settings.disabledMode == "auto"))
+	    startTimer()
+	// Disable the device and update the enabled status to reflect the new status
+	if (logEnable)log.debug "Disabling ${getLinkText(device)}"
+    state.updatePresence = false
+    if (device.currentValue("presence") == "present")
+		sendEvent(name: "enabled", value: "disabled-present", isStateChange: true)
+    else if (device.currentValue("presence") == "not present")
+		sendEvent(name: "enabled", value: "disabled-not present", isStateChange: true)
+}
+
+def toggle() {
+	// Button pressed, toggle the enabled state (which also tracks the current presence)
+	if ((device.currentValue("enabled") == "enabled-present") || (device.currentValue("enabled") == "enabled-not present"))
+    	disable()
+    else
+    	enable()
+}
+
+def on(){
+	enable()
+}
+
+def off(){
+	disable()
+}
+	
