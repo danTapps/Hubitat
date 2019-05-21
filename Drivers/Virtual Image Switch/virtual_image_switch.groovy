@@ -38,7 +38,6 @@ def on() {
 }
 
 def off() {
-//    sendEvent(name: "presence", value: "not present")
     sendEvent(name: "switch", value: "off")
     sendEvent(name: "image", value: state.offImage)
 }
