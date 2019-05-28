@@ -26,20 +26,7 @@ metadata {
         capability "Switch"
         
         attribute "image", "string"
-        command "setOnImage", ["imageHtmlTag"]
-        command "setOffImage", ["imageHtmlTag"]
-        
     }   
-}
-
-def on() {
-    sendEvent(name: "switch", value: "on")
-    sendEvent(name: "image", value: state.onImage)
-}
-
-def off() {
-    sendEvent(name: "switch", value: "off")
-    sendEvent(name: "image", value: state.offImage)
 }
 
 def updated() {
@@ -49,9 +36,22 @@ def updated() {
         setOffImage('<img src=https://raw.githubusercontent.com/danTapps/Hubitat/master/switch-off.png width=30 height=30>')
     
 }
+
+def on() {
+    sendEvent(name: "switch", value: "on")
+    if (state.onImage == null)
+        updated()
+    sendEvent(name: "image", value: state.onImage)
+}
+
+def off() {
+    sendEvent(name: "switch", value: "off")
+    if (state.offImage == null)
+        updated()
+    sendEvent(name: "image", value: state.offImage)
+}
+
 def installed() {
-    setOnImage('<img src=https://raw.githubusercontent.com/danTapps/Hubitat/master/switch-on.png width=30 height=30>')
-    setOffImage('<img src=https://raw.githubusercontent.com/danTapps/Hubitat/master/switch-off.png width=30 height=30>')
     off()   
 }
 
