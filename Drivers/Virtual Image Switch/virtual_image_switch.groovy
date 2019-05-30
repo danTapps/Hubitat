@@ -16,7 +16,8 @@
  *
  *    Date        Who            What
  *    ----        ---            ----
- *    2018-05-21  Daniel Terryn  Original Creation
+ *    2019-05-21  Daniel Terryn  Original Creation
+ *	  2019-05-30  Daniel Terryn	 Updated to be able to set image url, width and height of image via commands
  * 
  */
 
@@ -26,41 +27,79 @@ metadata {
         capability "Switch"
         
         attribute "image", "string"
+		command "setOnImageUrl", ["URL"]
+		command "setOffImageUrl", ["URL"]
+		command "setImageWidth", ["Width"]
+		command "setImageHeight", ["Height"]
     }   
 }
 
 def updated() {
+    if (state.imgWidth == null)
+		state.imgWidth = 30
+	if (state.imgHeight == null)
+		state.imgHeight = 30
     if (state.onImage == null)
-        setOnImage('<img src=https://raw.githubusercontent.com/danTapps/Hubitat/master/switch-on.png width=30 height=30>')
+		setOnImageUrl("https://tinyurl.com/yy7j4ao8")
     if (state.offImage == null)
-        setOffImage('<img src=https://raw.githubusercontent.com/danTapps/Hubitat/master/switch-off.png width=30 height=30>')
-    
+        setOffImageUrl("https://tinyurl.com/yyg465bu")
 }
 
 def on() {
     sendEvent(name: "switch", value: "on")
-    if (state.onImage == null)
-        updated()
+	if (state.onImage == null)
+		updated()
     sendEvent(name: "image", value: state.onImage)
 }
 
 def off() {
     sendEvent(name: "switch", value: "off")
-    if (state.offImage == null)
-        updated()
+	if (state.offImage == null)
+		updated()
     sendEvent(name: "image", value: state.offImage)
 }
 
 def installed() {
+	updated()
     off()   
 }
 
-def setOnImage(newImage)
+def setOnImageTag(url, width, heigth)
 {
-    state.onImage = newImage
+	state.onImage = "<img src=" + url + " width="+width+" height="+heigth+">"
+	if (device.currentValue("switch") == "on")
+		sendEvent(name: "image", value: state.onImage)
 }
 
-def setOffImage(newImage)
+def setOffImageTag(url, width, heigth)
 {
-    state.offImage = newImage
+	state.offImage = "<img src=" + url + " width="+width+" height="+heigth+">"
+	if (this.device.currentValue("switch") == "off")
+		sendEvent(name: "image", value: state.offImage)
+}
+
+def setOnImageUrl(newImage)
+{
+    state.onImageUrl = newImage
+	setOnImageTag(state.onImageUrl, state.imgWidth, state.imgHeight)
+}
+
+def setOffImageUrl(newImage)
+{
+    state.offImageUrl = newImage
+	setOffImageTag(state.offImageUrl, state.imgWidth, state.imgHeight)
+}
+
+def setImageHeight(height)
+{
+	state.imgHeight = height
+	setOnImageTag(state.onImageUrl, state.imgWidth, state.imgHeight)
+	setOffImageTag(state.offImageUrl, state.imgWidth, state.imgHeight)
+}
+
+def setImageWidth(width)
+{
+	state.imgWidth = width
+	setOnImageTag(state.onImageUrl, state.imgWidth, state.imgHeight)
+	setOffImageTag(state.offImageUrl, state.imgWidth, state.imgHeight)
 }
