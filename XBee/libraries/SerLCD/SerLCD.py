@@ -93,9 +93,12 @@ class SerLCD:
         for c in data1:
             raw_data.append(c)
         # print(raw_data)
-        self._i2c.writeto(addr, bytes(raw_data))
-        # self._bus.write_i2c_block_data(addr, data0, data1)
-
+        try:
+            self._i2c.writeto(addr, bytes(raw_data))
+            # self._bus.write_i2c_block_data(addr, data0, data1)
+        except Exception as e:
+            print( "Error writing I2C", e )
+    
     def __init__(self, inI2C, i2cAddr=I2C_ADDRESS):
         self._i2cAddr = i2cAddr
         self._i2c = inI2C
