@@ -113,7 +113,7 @@ class Tsl2591(object):
         except Exception as e:
             print( "Error writing I2C", e )
             value = 0x0
-    return int.from_bytes(value, 'big')
+        return int.from_bytes(value, 'big')
 
     def set_timing(self, integration):
         self.enable()
