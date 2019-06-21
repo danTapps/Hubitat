@@ -19,7 +19,7 @@
 #
 #    Date        Who            What
 #    ----        ---            ----
-#    2019-20-06  Daniel Terryn  Original Creation
+#    2019-06-20  Daniel Terryn  Original Creation
 #
 #
 #  Example usage:
