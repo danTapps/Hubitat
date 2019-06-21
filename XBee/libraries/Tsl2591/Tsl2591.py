@@ -107,11 +107,12 @@ class Tsl2591(object):
             print( "Error writing I2C", e )
 
     def _read(self, addr, cmd):
-    self._i2c.writeto(41, bytes([cmd]))
         try:
+            self._i2c.writeto(41, bytes([cmd]))
             value = self._i2c.readfrom(addr, 2)
         except Exception as e:
             print( "Error writing I2C", e )
+            value = 0x0
     return int.from_bytes(value, 'big')
 
     def set_timing(self, integration):
