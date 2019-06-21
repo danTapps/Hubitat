@@ -220,4 +220,3 @@ class Tsl2591(object):
             return full - ir
         else: # unknown channel!
             return 0
-
