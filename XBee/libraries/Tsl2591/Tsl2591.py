@@ -86,7 +86,7 @@ class Tsl2591(object):
                  integration=INTEGRATIONTIME_100MS,
                  gain=GAIN_LOW
                  ):
-    self._i2c = i2c_bus
+        self._i2c = i2c_bus
         self.sendor_address = sensor_address
         self.integration_time = integration
         self.gain = gain
