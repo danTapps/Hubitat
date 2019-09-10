@@ -1,7 +1,7 @@
 /*****************************************************************************************************************
  *  Copyright Daniel Terryn
  *
- *  Name: The NFL Alarm App
+ *  Name: The NFL Scorer App
  *
  *  Date: 2019-09-10
  *
@@ -9,7 +9,7 @@
  *
  *  Author: Daniel Terryn
  *
- *  Description: A SmartApp to send notifications and actions on NFL Team Scores
+ *  Description: A SmartApp to send notifications and actions when NFL Team Scores
  *
  *  License:
  *   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
