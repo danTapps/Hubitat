@@ -1,3 +1,26 @@
+/*****************************************************************************************************************
+ *  Copyright Daniel Terryn
+ *
+ *  Name: The great Bunny House Lightning App....
+ *
+ *  Date: 2019-09-22
+ *
+ *  Version: 1.00
+ *
+ *  Author: Daniel Terryn
+ *
+ *  Description: A driver to retrieve the current time from an NTP server and update the hub....
+ *
+ *  License:
+ *   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *   in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *   for the specific language governing permissions and limitations under the License.
+ *****************************************************************************************************************/
 metadata {
     definition (name: "NTP Client", author: "dan.t", namespace: "dan.t") {
         capability "Actuator"
@@ -69,11 +92,11 @@ def parse(description) {
         
         logger("NTP Server returned time of ${newTimeMS}", "info")
         logger("Hub is ${now()}", "info")
-        def timeDiff = newTimeMS - now()
-        logger("Diff is ${timeDiff}")
+        def timeDiff = newTimeMS - now() as long
         if (timeDiff < 0)
             timeDiff = timeDiff * -1
-        if (timeDiff >= minTimeDiff)
+        logger("Time Diff is ${timeDiff} ms", "debug")
+        if (timeDiff >= Long.parseLong(minTimeDiff))
         {
             logger("Update Hub Time to ${newDate}", "info")
             location.hub.updateSystemTime(new Date(newTimeMS.toLong()))
@@ -84,7 +107,7 @@ def parse(description) {
     }
 }
 
-def decodeTimestamp(byte[] array, int pointer)
+def getTimestamp(byte[] array, int pointer)
 {
     def r = 0.0 as double
         
@@ -102,17 +125,6 @@ def unsignedByteToShort(byte b)
     else return (short) b
 }
 
-def debugDate(epoch)
-{
-    long longDate = Long.valueOf(epoch).longValue()
-    parseDate = new Date(longDate).format("yyyy-MM-dd'T'HH:mm:ss.SSSZ", location.timeZone)
-    logger("Date: ${parseDate}")
-}
-
-def timestampToString (timestamp) {
-    return millisToDate (timestampToMS(timestamp))
-}
-
 def timestampToMS (timestamp) {
 
     def DAYS = 25567 as long; // 1 Jan 1900 to 1 Jan 1970
@@ -121,12 +133,6 @@ def timestampToMS (timestamp) {
     
     // timestamp is relative to 1900, utc is used by Java and is relative to 1970 
     return Math.round (1000.0*(timestamp-SECS))
-}
-
-def millisToDate (ms) {
-    long longDate = Long.valueOf(ms).longValue()
-    parseDate = new Date(longDate).format("yyyy-MM-dd'T'HH:mm:ss.SSSZ", location.timeZone)
-    return parseDate
 }
 
 def getNTPTimeMS(byte[] array) {
@@ -157,13 +163,13 @@ def getNTPTimeMS(byte[] array) {
     referenceIdentifier[3] = array[15];
     */
     
-    referenceTimestamp = decodeTimestamp(array, 16)
-    logger("referenceTimestamp: ${referenceTimestamp} ${timestampToString(referenceTimestamp)}", "debug")
+    referenceTimestamp = getTimestamp(array, 16)
+    logger("referenceTimestamp: ${referenceTimestamp}", "debug")
 
     /*
-    originateTimestamp = decodeTimestamp(array, 24)
-    receiveTimestamp = decodeTimestamp(array, 32)
-    transmitTimestamp = decodeTimestamp(array, 40)
+    originateTimestamp = getTimestamp(array, 24)
+    receiveTimestamp = getTimestamp(array, 32)
+    transmitTimestamp = getTimestamp(array, 40)
     */
     return timestampToMS(referenceTimestamp)
 }
