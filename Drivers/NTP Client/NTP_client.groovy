@@ -90,8 +90,8 @@ def parse(description) {
         def newTimeMS = getNTPTimeMS(rawBytes)
         def newDate = new Date(newTimeMS.toLong())
         
-        logger("NTP Server returned time of ${newTimeMS}", "info")
-        logger("Hub is ${now()}", "info")
+        logger("NTP Server returned time of ${newTimeMS} aka ${new Date(newTimeMS.toLong())}", "info")
+        logger("Hub is ${now()} aka ${new Date(now())}", "info")
         def timeDiff = newTimeMS - now() as long
         if (timeDiff < 0)
             timeDiff = timeDiff * -1
