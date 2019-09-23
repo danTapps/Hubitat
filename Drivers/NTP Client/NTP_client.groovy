@@ -35,6 +35,7 @@ metadata {
         input ( name: "port", type: "text", title: "NTP Server Port", description: "port in form of 123", required: true, displayDuringSetup: true, default: 123 )
         input ( name: "minTimeDiff", title: "Minimum time difference between Hub and NTP Server to update time.", type: "enum",
             options: [
+                180000 : "3 Minutes",
                 300000 : "5 Minutes",
                 600000 : "10 Minutes",
                 1200000 : "20 Minutes",
