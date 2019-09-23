@@ -24,7 +24,7 @@
 
 
 metadata {
-    definition (name: "NTP Client", author: "dan.t", namespace: "dan.t") {
+    definition (name: "NTP Client", author: "dan.t", namespace: "dan.t", importUrl: "https://raw.githubusercontent.com/danTapps/Hubitat/master/Drivers/NTP%20Client/NTP_client.groovy") {
         capability "Actuator"
         capability "Refresh"
         capability "Initialize"
@@ -295,5 +295,6 @@ private logger(msg, level = "debug") {
             break
     }
 }
+
 
 
