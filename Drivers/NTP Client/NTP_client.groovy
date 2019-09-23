@@ -1,11 +1,11 @@
 /*****************************************************************************************************************
  *  Copyright Daniel Terryn
  *
- *  Name: The great Bunny House Lightning App....
+ *  Name: NTP Client to retrieve Date/Time from local NTP server....
  *
  *  Date: 2019-09-22
  *
- *  Version: 1.00
+ *  Version: 1.10
  *
  *  Author: Daniel Terryn
  *
@@ -21,10 +21,13 @@
  *   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *   for the specific language governing permissions and limitations under the License.
  *****************************************************************************************************************/
+
+
 metadata {
     definition (name: "NTP Client", author: "dan.t", namespace: "dan.t") {
         capability "Actuator"
         capability "Refresh"
+        capability "Initialize"
         
     }
     preferences {
@@ -32,9 +35,15 @@ metadata {
         input ( name: "port", type: "text", title: "NTP Server Port", description: "port in form of 123", required: true, displayDuringSetup: true, default: 123 )
         input ( name: "minTimeDiff", title: "Minimum time difference between Hub and NTP Server to update time.", type: "enum",
             options: [
-                "3600000" : "1 Hour",
-                "7200000" : "2 Hours",
-                "10800000" : "3 Hours"
+                300000 : "5 Minutes",
+                600000 : "10 Minutes",
+                1200000 : "20 Minutes",
+                1800000 : "30 Minutes",
+                2400000 : "40 Minutes",
+                3000000 : "50 Minutes",
+                3600000 : "1 Hour",
+                7200000 : "2 Hours",
+                10800000 : "3 Hours"
             ],
             displayDuringSetup: true, required: true )   
         input ( name: 'pollInterval', type: 'enum', title: 'Update interval (in minutes)', options: ['10', '30', '60', '120', '300'], required: true, displayDuringSetup: true )
@@ -87,7 +96,7 @@ def parse(description) {
     try {
         def encrResponse = parseLanMessage(description).payload
         byte[] rawBytes = hubitat.helper.HexUtils.hexStringToByteArray(encrResponse);
-        def newTimeMS = getNTPTimeMS(rawBytes)
+        def newTimeMS = getNTPTimeMS(rawBytes, now())
         def newDate = new Date(newTimeMS.toLong())
         
         logger("NTP Server returned time of ${newTimeMS} aka ${new Date(newTimeMS.toLong())}", "info")
@@ -96,6 +105,7 @@ def parse(description) {
         if (timeDiff < 0)
             timeDiff = timeDiff * -1
         logger("Time Diff is ${timeDiff} ms", "debug")
+        logger("minTimeDiff is ${minTimeDiff} ms", "debug")
         if (timeDiff >= Long.parseLong(minTimeDiff))
         {
             logger("Update Hub Time to ${newDate}", "info")
@@ -119,7 +129,7 @@ def getTimestamp(byte[] array, int pointer)
     return r
 }
 
-def unsignedByteToShort(byte b)
+short unsignedByteToShort(byte b)
 {
     if((b & 0x80)==0x80) return (short) (128 + (b & 0x7f))
     else return (short) b
@@ -135,7 +145,10 @@ def timestampToMS (timestamp) {
     return Math.round (1000.0*(timestamp-SECS))
 }
 
-def getNTPTimeMS(byte[] array) {
+def getNTPTimeMS(byte[] array, destinationTimestamp) {
+    def SECONDS_1900_TO_EPOCH = 2208988800.0 as double
+
+    destinationTimestamp = (destinationTimestamp/1000) + SECONDS_1900_TO_EPOCH
     // See the packet format diagram in RFC 2030 for details 
     
     /* 
@@ -162,25 +175,52 @@ def getNTPTimeMS(byte[] array) {
     referenceIdentifier[2] = array[14];
     referenceIdentifier[3] = array[15];
     */
-    
-    referenceTimestamp = getTimestamp(array, 16)
-    logger("referenceTimestamp: ${referenceTimestamp}", "debug")
 
-    /*
+    referenceTimestamp = getTimestamp(array, 16)
     originateTimestamp = getTimestamp(array, 24)
     receiveTimestamp = getTimestamp(array, 32)
     transmitTimestamp = getTimestamp(array, 40)
-    */
-    return timestampToMS(referenceTimestamp)
+
+    double localClockOffset = ((receiveTimestamp - originateTimestamp) +
+                               (transmitTimestamp - destinationTimestamp)) / 2;
+    
+    return (now() + localClockOffset*1000)
+}
+
+def encodeTimestamp(array,pointer, timestamp)
+{
+        // Converts a double into a 64-bit fixed point
+        for(i=0; i<8; i++) {
+            // 2^24, 2^16, 2^8, .. 2^-32
+            double base = Math.pow(2, (3-i)*8);
+               
+            // Capture byte value
+            array[pointer+i] = (byte) (timestamp / base);
+
+            // Subtract captured value from remaining total
+            timestamp = timestamp - (unsignedByteToShort(array[pointer+i]) * base);
+        }
+
+        // From RFC 2030: It is advisable to fill the non-significant
+        // low order bits of the timestamp with a random, unbiased
+        // bitstring, both to avoid systematic roundoff errors and as
+        // a means of loop detection and replay detection.
+        //array[7+pointer] = (byte) (RandomSource.getInstance().nextInt());
+        array[7+pointer] = 0x0;
+    return array;
 }
 
 def refresh() {
+    def SECONDS_1900_TO_EPOCH = 2208988800.0 as double
+
     logger("Executing 'refresh()'", "debug")
     byte[] rawBytes = [0x1b, 0x0,  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]
+    rawBytes = encodeTimestamp(rawBytes, 40, (now()/1000)+SECONDS_1900_TO_EPOCH)
+
     String stringBytes = hubitat.helper.HexUtils.byteArrayToHexString(rawBytes)
     def myHubAction = new hubitat.device.HubAction(stringBytes, 
                            hubitat.device.Protocol.LAN, 
