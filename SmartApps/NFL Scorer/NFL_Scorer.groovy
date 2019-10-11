@@ -1,26 +1,4 @@
-/*****************************************************************************************************************
- *  Copyright Daniel Terryn
- *
- *  Name: The NFL Scorer App
- *
- *  Date: 2019-09-10
- *
- *  Version: 0.02
- *
- *  Author: Daniel Terryn
- *
- *  Description: A SmartApp to send notifications and actions when NFL Team Scores
- *
- *  License:
- *   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *   in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *   Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *   for the specific language governing permissions and limitations under the License.
- *****************************************************************************************************************/import groovy.json.JsonSlurper
+import groovy.json.JsonSlurper
 import java.util.List;
 import java.util.Map;
 import java.text.SimpleDateFormat 
@@ -38,16 +16,16 @@ definition(
     importUrl: "https://raw.githubusercontent.com/danTapps/Hubitat/master/SmartApps/NFL%20Scorer/NFL_Scorer.groovy")
 
  preferences {
- 	section() {
- 		page name: "mainPage", title: "", install: true, uninstall: true
- 	}
+    section() {
+        page name: "mainPage", title: "", install: true, uninstall: true
+    }
  }
  def mainPage() {
- 	dynamicPage(name: "mainPage") {
- 		//preCheck()
+    dynamicPage(name: "mainPage") {
+        //preCheck()
         section() {label title: "Enter a name for this App", required: false}
 
- 		section() {
+        section() {
         //input "RunMe", "button", title: "resetUpdate"
         //input "Update", "button", title: "Update"
             input ( name: "configTeam", title: "NFL team to follow.", type: "enum",
@@ -86,9 +64,9 @@ definition(
             input "myNotificationDevice", "capability.notification", title: "Send scoring notifications to notification device", multiple: true, required: false
             input "myRedzoneSwitch", "capability.switch", title: "Turn switch on/off when team is in RedZone", multiple: false, required: false
             input "myScoringButton", "capability.pushableButton", title: "Push button when team scores", multiple: false, required: false, submitOnChange: true
- 			if(myScoringButton){
+            if(myScoringButton){
                     input "myScoringButtonNumber", "number", title: "Enter Button Number", required: true, multiple: false, width: 3
- 		            input "myScoringButtonAction", "enum", title: "Select Action", options: ["1":"push","2":"hold","3":"release"], defaultValue: "", displayDuringSetup: true, required: true, width: 3
+                    input "myScoringButtonAction", "enum", title: "Select Action", options: ["1":"push","2":"hold","3":"release"], defaultValue: "", displayDuringSetup: true, required: true, width: 3
             }
             input "myChildDevice", "bool", title: "Create Device with game details", default: false, required: false
         }
@@ -168,10 +146,10 @@ def updated() {
     state.team = settings.configTeam
     logger("updated()", "info")
     if (!(settings.configTeam))
-	    logger("configTeam not set")
+        logger("configTeam not set")
     unsubscribe()
-	unschedule()
-	initialize()
+    unschedule()
+    initialize()
 }
 
 private void createChildDevice(String deviceName) {
@@ -349,7 +327,7 @@ def responseNFLScores(response, data)
         return
     }
 
-	def jsonData = parseJson(response.getData())
+    def jsonData = parseJson(response.getData())
     //logger("responseNFLScores() data: ${jsonData}", "trace")
     def now = new Date()
     def tf = new java.text.SimpleDateFormat("yyyyMMdd")
