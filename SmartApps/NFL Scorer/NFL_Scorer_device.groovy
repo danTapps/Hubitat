@@ -1,6 +1,6 @@
 
 metadata {
-    definition (name: "NFL Team Watcher Device", namespace: "dan.t", author: "Daniel Terryn") {
+    definition (name: "NFL Team Watcher Device", namespace: "dan.t", author: "Daniel Terryn",    importUrl: "https://raw.githubusercontent.com/danTapps/Hubitat/master/SmartApps/NFL%20Scorer/NFL_Scorer_device.groovy") {
         capability "Sensor"
     }   
     
