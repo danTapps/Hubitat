@@ -12,7 +12,7 @@ definition(
 
 preferences {
 
-    section("Devices To Refresh:") {
+    section("Life360 Credentials:") {
 
         input "username", "string", title: "Username", required: true
         input "password", "string", title: "Password", required: true
@@ -25,7 +25,6 @@ def installed() {
     state.installedAt = now()
     log.debug "${app.label}: Installed" 
     initialize()
-    state.specialBunnyFlag = false
 }
 
 
