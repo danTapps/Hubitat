@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #Set variables
 username360="username"
 password360="PASS"
