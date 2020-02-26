@@ -38,9 +38,9 @@ metadata {
         capability "Initialize"
         capability "Presence Sensor"
 
-		command "setMode", [[name:"Set Mode*", type: "ENUM", description: "Set Mode", constraints: ["passthrough", "video", "music", "game"] ] ]
-		command "setInput", [[name:"Set Input*", type: "ENUM", description: "Set Input", constraints: ["input1", "input2", "input3", "input4"] ] ]
-		command "setItensity", [[name:"Mode*", type: "ENUM", description: "Mode", constraints: ["video", "music", "game"] ],[name:"Intensity*", type: "ENUM", description: "Intensity", constraints: ["subtle", "moderate", "high", "intense"] ] ]
+        command "setMode", [[name:"Set Mode*", type: "ENUM", description: "Set Mode", constraints: ["passthrough", "video", "music", "game"] ] ]
+        command "setInput", [[name:"Set Input*", type: "ENUM", description: "Set Input", constraints: ["input1", "input2", "input3", "input4"] ] ]
+        command "setItensity", [[name:"Mode*", type: "ENUM", description: "Mode", constraints: ["video", "music", "game"] ],[name:"Intensity*", type: "ENUM", description: "Intensity", constraints: ["subtle", "moderate", "high", "intense"] ] ]
         //command "toggleMode"
         command "checkForUpdates"
         command "reboot"
@@ -54,8 +54,6 @@ metadata {
         attribute "lastCheckedUpdate", "string"
         attribute "updateAvailable", "string"
         attribute "intensity", "string"
-
-        
     }
     preferences {
         input ( name: "ip", type: "text", title: "HUE Sync Box IP Address", description: "IP Address in form 192.168.1.226", required: true, displayDuringSetup: true )
