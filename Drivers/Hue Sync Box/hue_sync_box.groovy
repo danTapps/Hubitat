@@ -9,7 +9,7 @@
  *
  *  Author: Daniel Terryn
  *
- *  Description: A driver to retrieve the current time from an NTP server and update the hub....
+ *  Description: A driver to retrieve to control the Hue Sync Box....
  *
  *  License:
  *   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
