@@ -3,11 +3,11 @@
  *
  *  Name: NTP Client to retrieve Date/Time from local NTP server....
  *
- *  Date: 2019-09-23
+ *  Date: 2020-04-27
  *
- *  Version: 1.20
+ *  Version: 1.21-bab
  *
- *  Author: Daniel Terryn
+ *  Author: Daniel Terryn / Barry Burke
  *
  *  Description: A driver to retrieve the current time from an NTP server and update the hub....
  *
@@ -27,11 +27,18 @@
  *    ----        ---            ----
  *    2019-09-22  Daniel Terryn  Original Creation
  *    2019-09-23  Daniel Terryn  Send event when time set, fixed NTP time calculation, more choices for time difference configuration, refactoring, show NTP Server Date as Event, add force command
- *
+ *    2020-04-27  Barry Burke    Optimizations to reduce delta/drift when setting time
+ *                               - change time conversion math to BigDecimal
+ *                               - declare all variable and function types
+ *                               - update the actual time BEFORE logger() & sendEvents()
+ *                               - enable corrections at 1/2 second of drift
+ *                               - allow checks to be scheduled every 1/2/3/5...minutes
+ *                               - randomize the seconds & minutes offset of schedule, so multiple instances(on multiple hubs) don't hit the timeserver at the same time
+ *                               - optimize calls to logger; convert remaining double math to BigDecimal
  * 
  */
 
-double SECONDS_1900_TO_EPOCH() {return 2208988800.0 as double}
+def SECONDS_1900_TO_EPOCH() {return 2208988800.0 as BigDecimal}
 
 metadata {
     definition (name: "NTP Client", author: "dan.t", namespace: "dan.t", importUrl: "https://raw.githubusercontent.com/danTapps/Hubitat/master/Drivers/NTP%20Client/NTP_client.groovy") {
@@ -52,6 +59,11 @@ metadata {
         input ( name: "ntpPort", type: "text", title: "NTP Server Port", description: "port in form of 123", required: true, displayDuringSetup: true, default: 123 )
         input ( name: "minTimeDiff", title: "Minimum time difference between Hub and NTP Server to update time.", type: "enum",
             options: [
+				500 : "1/2 Second",
+				1000 : "1 Second",
+				10000 : "10 Seconds",
+				30000 : "30 Seconds",
+				60000 : "1 Minutes",
                 180000 : "3 Minutes",
                 300000 : "5 Minutes",
                 600000 : "10 Minutes",
@@ -64,7 +76,7 @@ metadata {
                 10800000 : "3 Hours"
             ],
             displayDuringSetup: true, required: true )   
-        input ( name: 'pollInterval', type: 'enum', title: 'Update interval (in minutes)', options: ['10', '30', '60', '120', '300'], required: true, displayDuringSetup: true )
+        input ( name: 'pollInterval', type: 'enum', title: 'Update interval (in minutes)', options: ['1', '2', '3', '4', '5', '10', '15', '30', '60', '120', '180', '240', '360', '720'], required: true, displayDuringSetup: true )
 
         input ( name: "configLoggingLevel", title: "Live Logging Level:\nMessages with this level and higher will be logged.", type: "enum",
             options: [
@@ -102,43 +114,75 @@ def configure() {
     updateDeviceNetworkID()
 
     unschedule()
-    if (Integer.parseInt(settings.pollInterval) < 61)
-        schedule("0 0/${settings.pollInterval} * 1/1 * ? *", refresh)
-    else
-        schedule("0 0 0/${Integer.parseInt(settings.pollInterval)/60} 1/1 * ? *", refresh)
+	Integer interval = Integer.parseInt(settings.pollInterval)
+	switch (interval) {
+		case 1: 
+			runEvery1Minute(refresh)
+			break;
+		case 5:
+			runEvery5Minutes(refresh)
+			break;
+		case 10:
+			runEvery10Minutes(refresh)
+			break;
+		case 15:
+			runEvery15Minutes(refresh)
+			break;
+		case 30:
+			runEvery30Minutes(refresh)
+			break;
+		case 60:
+			runEvery1Hour(refresh)
+			break;
+		case 180:
+			runEvery3Hours(refresh)
+			break;
+		default:
+			Random rand = new Random()
+			int randomSeconds = rand.nextInt(59)
+            int startMinutes = rand.nextInt( interval < 60 ? interval : 59)
+			if ( interval < 61)
+                schedule("${randomSeconds} ${startMinutes}/${interval} * * * ?", refresh)
+			else
+                schedule("${randomSeconds} ${startMinutes} 0/${interval/60} * * ?", refresh)
+			break;
+	}
     refresh()
 }
 
 def parse(description) {
-    logger("Executing 'parse() ${description}'", "debug")
+    if (state.loggingLevel <= 4) logger("Executing 'parse() ${description}'", "debug")
     try {
         def encrResponse = parseLanMessage(description).payload
         byte[] rawBytes = hubitat.helper.HexUtils.hexStringToByteArray(encrResponse);
-        def hubTimeMS = now() 
-        def newTimeMS = getNTPTimeMS(rawBytes, hubTimeMS)
-        
-        logger("NTP Server returned time of ${newTimeMS} aka ${new Date(newTimeMS.toLong())}", "info")
-        logger("Hub is ${hubTimeMS} aka ${new Date(hubTimeMS)}", "info")
-        def timeDiff = newTimeMS - hubTimeMS as long
-        if (timeDiff < 0)
-            timeDiff = timeDiff * -1
-        logger("Time Diff is ${timeDiff} ms", "debug")
-        logger("minTimeDiff is ${minTimeDiff} ms", "debug")
-        sendEvent(name: "lastNTPdate", value: (new Date(newTimeMS.toLong())).toString())
-        sendEvent(name: "lastHubDate", value: (new Date(hubTimeMS)).toString())
-        sendEvent(name: "lastDiffMS", value: timeDiff)
-
-        if ((timeDiff >= Long.parseLong(minTimeDiff)) || (state?.force == true))
+        long hubTimeMS = now() 
+        long newTimeMS = getNTPTimeMS(rawBytes, hubTimeMS)
+		
+		// update time as soon as possible to reduce the drift
+		long timeDiff = newTimeMS - hubTimeMS as long
+        if (timeDiff < 0) timeDiff = timeDiff * -1
+		if ((timeDiff >= Long.parseLong(minTimeDiff)) || (state?.force == true))
         {
+			location.hub.updateSystemTime(new Date(newTimeMS.toLong()))
             if (state?.force == true)
-                logger("Force Update Hub Time to ${(new Date(newTimeMS.toLong())).toString()}", "info")
+                if (state.loggingLevel <= 4) logger("Force Update Hub Time to ${(new Date(newTimeMS.toLong())).toString()}", "info")
             else
                 logger("Update Hub Time to ${(new Date(newTimeMS.toLong())).toString()}", "info")
             sendEvent(name: "updateHubTimeTo", value: (new Date(newTimeMS.toLong())).toString())
-            location.hub.updateSystemTime(new Date(newTimeMS.toLong()))
         }
         state.force = false
-
+        
+		if (state.loggingLevel <= 3) {
+        	logger("NTP is ${newTimeMS} ms aka ${new Date(newTimeMS.toLong())}", "info")
+        	logger("Hub is ${hubTimeMS} ms aka ${new Date(hubTimeMS)}", "info")
+		}
+		if (state.loggingLevel <= 4) {
+        	logger("Diff is ${timeDiff} ms", "debug")
+        	logger("minTimeDiff is ${minTimeDiff} ms", "debug")
+		}
+        sendEvent(name: "lastNTPdate", value: (new Date(newTimeMS.toLong())).toString())
+        sendEvent(name: "lastHubDate", value: (new Date(hubTimeMS)).toString())
+        sendEvent(name: "lastDiffMS", value: timeDiff)
     } catch (error) {
         logger("<font color=red>${error}</font>", "warn")
     }
@@ -147,7 +191,7 @@ def parse(description) {
 def refresh() {
     //def SECONDS_1900_TO_EPOCH = 2208988800.0 as double
 
-    logger("Executing 'refresh()'", "debug")
+    if (state.loggingLevel <= 4) logger("Executing 'refresh()'", "debug")
     byte[] rawBytes = [0x1b, 0x0,  0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
@@ -166,7 +210,7 @@ def refresh() {
 
 def force()
 {
-    logger("Executing 'force()'", "debug")
+    if (state.loggingLevel <= 4) logger("Executing 'force()'", "debug")
     state.force = true
     logger("<b>Forcing</b> Date/Time update in 2 seconds", "info")
     runIn(2, "refresh", [overwrite: true])
@@ -175,8 +219,8 @@ def force()
 
 def getTimestamp(byte[] array, int pointer)
 {
-    logger("Executing 'getTimestamp()'", "debug")
-    def r = 0.0 as double
+    if (state.loggingLevel <= 4) logger("Executing 'getTimestamp()'", "debug")
+    def r = 0.0 // as double
         
     for(int i=0; i<8; i++)
     {
@@ -192,9 +236,9 @@ short unsignedByteToShort(byte b)
     else return (short) b
 }
 
-def getNTPTimeMS(byte[] array, destinationTimestamp) 
+long getNTPTimeMS(byte[] array, destinationTimestamp) 
 {
-    logger("Executing 'getNTPTimeMS()'", "debug")
+    if (state.loggingLevel <= 4) logger("Executing 'getNTPTimeMS()'", "debug")
     // See the packet format diagram in RFC 2030 for details 
     
     /* 
@@ -222,21 +266,21 @@ def getNTPTimeMS(byte[] array, destinationTimestamp)
     referenceIdentifier[3] = array[15];
     */
 
-    referenceTimestamp = getTimestamp(array, 16)
-    originateTimestamp = getTimestamp(array, 24)
-    receiveTimestamp = getTimestamp(array, 32)
-    transmitTimestamp = getTimestamp(array, 40)
+    def referenceTimestamp = getTimestamp(array, 16)
+    def originateTimestamp = getTimestamp(array, 24)
+    def receiveTimestamp = getTimestamp(array, 32)
+    def transmitTimestamp = getTimestamp(array, 40)
 
     return (now() + (((receiveTimestamp - originateTimestamp) + (transmitTimestamp - ((destinationTimestamp/1000) + SECONDS_1900_TO_EPOCH()))) / 2)*1000)
 }
 
 def encodeTimestamp(array,pointer, timestamp)
 {
-    logger("Executing 'encodeTimestamp()'", "debug")
+    if (state.loggingLevel <= 4) logger("Executing 'encodeTimestamp()'", "debug")
     // Converts a double into a 64-bit fixed point
     for(i=0; i<8; i++) {
         // 2^24, 2^16, 2^8, .. 2^-32
-        double base = Math.pow(2, (3-i)*8);
+        def base = Math.pow(2, (3-i)*8) as BigDecimal
                
         // Capture byte value
         array[pointer+i] = (byte) (timestamp / base);
