@@ -102,8 +102,11 @@ def configure() {
     updateDeviceNetworkID()
 
     unschedule()
-    if (Integer.parseInt(settings.pollInterval) < 61)
+    
+    if (Integer.parseInt(settings.pollInterval) < 60)
         schedule("0 0/${settings.pollInterval} * 1/1 * ? *", refresh)
+    else (Integer.parseInt(settings.pollInterval) == 60)
+        runEvery1Hour(refresh)
     else
         schedule("0 0 0/${Integer.parseInt(settings.pollInterval)/60} 1/1 * ? *", refresh)
     refresh()
