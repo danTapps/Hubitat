@@ -27,8 +27,8 @@
  *    ----        ---            ----
  *    2020-02-07  Daniel Terryn  Original Creation
  *    2020-02-26  Daniel Terryn  Added reboot command, fixed Input 4
+ *    2020-04-17  Mike Neir      Added powersave mode, added mode select for on/off actions, more complete switch state detection
  *
- * 
  */
 
 metadata {
@@ -38,14 +38,14 @@ metadata {
         capability "Initialize"
         capability "Presence Sensor"
 
-        command "setMode", [[name:"Set Mode*", type: "ENUM", description: "Set Mode", constraints: ["passthrough", "video", "music", "game"] ] ]
+        command "setMode", [[name:"Set Mode*", type: "ENUM", description: "Set Mode", constraints: ["powersave", "passthrough", "video", "music", "game"] ] ]
         command "setInput", [[name:"Set Input*", type: "ENUM", description: "Set Input", constraints: ["input1", "input2", "input3", "input4"] ] ]
         command "setItensity", [[name:"Mode*", type: "ENUM", description: "Mode", constraints: ["video", "music", "game"] ],[name:"Intensity*", type: "ENUM", description: "Intensity", constraints: ["subtle", "moderate", "high", "intense"] ] ]
         //command "toggleMode"
         command "checkForUpdates"
         command "reboot"
         command "registerHueSyncBox"
-        
+
         attribute "brightness", "number"
         attribute "mode", "string"
         attribute "hdmiSource", "string"
@@ -59,6 +59,8 @@ metadata {
         input ( name: "ip", type: "text", title: "HUE Sync Box IP Address", description: "IP Address in form 192.168.1.226", required: true, displayDuringSetup: true )
         input ( name: "api_key", type: "text", title: "API Key", required: false, displayDuringSetup: true )
         input ( name: 'pollInterval', type: 'enum', title: 'Update interval (in seconds)', options: ['10', '30', '60', '300'], required: true, displayDuringSetup: true, defaultValue: "60" )
+        input ( name: 'onActionMode', type: 'enum', title: 'Mode to activate when turned "on"', options: ['passthrough', 'video', 'game', 'music'], required: true, displayDuringSetup: true, defaultValue: "video" )
+        input ( name: 'offActionMode', type: 'enum', title: 'Mode to activate when turned "off"', options: ['passthrough', 'powersave'], required: true, displayDuringSetup: true, defaultValue: "passthrough" )
         input ( name: "configLoggingLevelIDE", title: "IDE Live Logging Level:\nMessages with this level and higher will be logged to the IDE.", type: "enum",
             options: [
                 "0" : "None",
@@ -68,7 +70,7 @@ metadata {
                 "4" : "Debug",
                 "5" : "Trace"
             ],
-            defaultValue: "3", displayDuringSetup: true, required: false )      
+            defaultValue: "3", displayDuringSetup: true, required: false )
     }
 }
 
@@ -114,7 +116,7 @@ def configure() {
             break
         default:
             logger("Scheduling polling every hour")
-            runEvery1Hour("refresh")                
+            runEvery1Hour("refresh")
     }
     refresh()
 }
@@ -140,7 +142,7 @@ def registerHueSyncBox()
     body.appName = "HueSyncBoxDriver"
     body.instanceName = "HueSyncBoxDriver"
     body.appSecret = "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="
-    
+
     def requestParams =
     [
         uri:  "https://${settings["ip"]}/api/v1/registrations",
@@ -152,8 +154,8 @@ def registerHueSyncBox()
         httpPost(requestParams)
         {
             response ->
-        	    if (response?.status == 200)
-	            {
+                if (response?.status == 200)
+                {
                     if (response?.data?.accessToken) {
                         device.updateSetting("api_key", [value:response?.data?.accessToken, type:"text"])
                         configure()
@@ -161,11 +163,11 @@ def registerHueSyncBox()
                     else {
                         log.error("Unknown error adding Hue Sync Box ${response?.data}")
                         runIn(10, "registerHueSyncBox")
-                        state.authTryCount = state.authTryCount + 1                        
+                        state.authTryCount = state.authTryCount + 1
                     }
                 }
-	            else
-	            {
+                else
+                {
                     log.error "Error in registration Response ${response?.status}"
                     runIn(10, "registerHueSyncBox")
                     state.authTryCount = state.authTryCount + 1
@@ -175,11 +177,11 @@ def registerHueSyncBox()
         log.error "Error:${hre.getResponse()?.getData()}"
         runIn(10, "registerHueSyncBox")
         state.authTryCount = state.authTryCount + 1
-    } catch (Exception e) {	
+    } catch (Exception e) {
         log.error "Something went wrong when posting: ${e}"
         runIn(10, "registerHueSyncBox")
         state.authTryCount = state.authTryCount + 1
-    }      
+    }
 }
 
 private sendUsernameRequest() {
@@ -202,8 +204,8 @@ private sendUsernameRequest() {
         httpPost(requestParams)
         {
             response ->
-        	    if (response?.status == 200)
-	            {
+                if (response?.status == 200)
+                {
                     if (response?.data?.accessToken) {
                         state["accessToken"] = response?.data?.accessToken
                         state["syncBoxAuthorized"] = true
@@ -212,16 +214,16 @@ private sendUsernameRequest() {
                         log.error("Unknown error adding Hue Sync Box ${response?.data}")
                     }
                 }
-	            else
-	            {
+                else
+                {
                     log.error "Error in registration Response ${response?.status}"
                 }
         }
     } catch (groovyx.net.http.HttpResponseException hre) {
           log.error "Error:${hre.getResponse()?.getData()}"
-    } catch (Exception e) {	
+    } catch (Exception e) {
           log.error "Something went wrong when posting: ${e}"
-    }          
+    }
 }
 
 
@@ -238,14 +240,14 @@ def refresh() {
     try{
         def data = sendAsyncHttpGet("")
         def switchState = "off"
-        if (data?.execution?.syncActive == true) {
-            switchState = "on"
-            if (data?.execution?.mode)
-                if (data?.execution[data?.execution?.mode]?.intensity) 
-                    valueChangeEvent("intensity", data?.execution[data?.execution?.mode]?.intensity, "")
-        } else {
-            valueChangeEvent("intensity", "off", "")
-        }
+        def syncIntensity = ""
+        if (data?.execution?.mode)
+            switchState = isHueSyncOnOrOff(data?.execution?.mode)
+        if (data?.execution?.syncActive == true)
+            if (data?.execution[data?.execution?.mode]?.intensity)
+                syncIntensity = data?.execution[data?.execution?.mode]?.intensity
+
+        valueChangeEvent("intensity", syncIntensity, "")
         valueChangeEvent("switch", switchState, "")
         if (data?.execution?.brightness)
             valueChangeEvent("brightness", data?.execution?.brightness, "")
@@ -265,9 +267,9 @@ def refresh() {
             valueChangeEvent("updateAvailable", "false", "")
         valueChangeEvent("presence", "present", "")
     } catch (Exception e){
-        logger("refresh() exception ${e}", "error")    
+        logger("refresh() exception ${e}", "error")
         valueChangeEvent("presence", "not present", "")
-    }      
+    }
 }
 
 def toggleMode()
@@ -275,10 +277,10 @@ def toggleMode()
     try{
         def currentMode = state?.data_points["mode"]
         setMode(state?.data_points["lastSyncMode"])
-        valueChangeEvent("lastSyncMode", currentMode, "")        
+        valueChangeEvent("lastSyncMode", currentMode, "")
 
     } catch (Exception e){
-        logger("toggleMode() exception ${e}", "error")    
+        logger("toggleMode() exception ${e}", "error")
     }
 }
 
@@ -287,7 +289,7 @@ def checkForUpdates()
     try{
         sendAsyncHttpPut("/device", "{\"action\": \"checkForFirmwareUpdates\" }")
     } catch (Exception e){
-        logger("checkForUpdates() exception ${e}", "error")    
+        logger("checkForUpdates() exception ${e}", "error")
     }
 
 }
@@ -303,10 +305,38 @@ def setInput(input)
 
     try{
         sendAsyncHttpPut("/execution", "{\"hdmiSource\":\"${input}\"}")
-        valueChangeEvent("hdmiSource", input, "")        
+        valueChangeEvent("hdmiSource", input, "")
     } catch (Exception e){
-        logger("setInput() exception ${e}", "error")    
+        logger("setInput() exception ${e}", "error")
     }
+}
+
+def isHueSyncOnOrOff(mode)
+{
+    def switchState
+    switch (mode) {
+        case "powersave":
+            switchState = "off"
+            break
+        case "passthrough":
+            if (settings.offActionMode == "passthrough")
+                switchState = "off"
+            else
+                switchState = "on"
+            break
+        case "game":
+            switchState = "on"
+            break
+        case "music":
+            switchState = "on"
+            break
+        case "video":
+            switchState = "on"
+            break
+        default:
+            switchState = "off"
+    }
+    return switchState;
 }
 
 def setMode(mode)
@@ -318,8 +348,10 @@ def setMode(mode)
         if (mode == "passthrough")
             valueChangeEvent("intensity", "", "")
 
+        valueChangeEvent("switch", isHueSyncOnOrOff(mode), "")
+
     } catch (Exception e){
-        logger("setMode() exception ${e}", "error")    
+        logger("setMode() exception ${e}", "error")
     }
 }
 
@@ -331,29 +363,29 @@ def setItensity(mode, intensity)
         sendAsyncHttpPut("/execution", "{\"${mode}\":{ \"intensity\": \"${intensity}\"}}")
         valueChangeEvent("intensity", intensity, "")
     } catch (Exception e){
-        logger("setItensity() exception ${e}", "error")    
-    }    
+        logger("setItensity() exception ${e}", "error")
+    }
 }
 
 def on() {
     logger("Receive \"on()\" command", "info")
 
     try{
-        setMode("video")
+        setMode(settings.onActionMode)
         valueChangeEvent("switch", "on", "")
     } catch (Exception e){
-        logger("on() exception ${e}", "error")    
-    }      
+        logger("on() exception ${e}", "error")
+    }
 }
 
 def off() {
-    logger("Receive \"off()\" command", "info")    
+    logger("Receive \"off()\" command", "info")
     try{
-        setMode("passthrough")
+        setMode(settings.offActionMode)
         valueChangeEvent("switch", "off", "")
     } catch (Exception e){
-        logger("off() exception ${e}", "error")    
-    }      
+        logger("off() exception ${e}", "error")
+    }
 }
 
 def valueChangeEvent(def deviceAttribute, def newValue, def newUnit = "")
@@ -375,13 +407,13 @@ def valueChangeEvent(def deviceAttribute, def newValue, def newUnit = "")
     }
     else
         state.data_points = [:]
-    
+
     state.data_points["${deviceAttribute}"] = newValue
-    
+
     logger("Send new ${deviceAttribute} state, old: ${oldValue}, new: ${newValue}", "info")
     def descriptionText = "${device.displayName} ${deviceAttribute} is ${newValue}"
     sendEvent(name: deviceAttribute, value: newValue, unit:  newUnit, descriptionText: descriptionText)
-    
+
     return true;
 }
 
@@ -392,26 +424,26 @@ def sendAsyncHttpPut(message, body)
         uri:  "https://${settings.ip}/api/v1"+message,
         contentType: "application/json",
         headers: ["Authorization": "Bearer ${settings.api_key}"],
-        timeout: 200, 
+        timeout: 200,
         ignoreSSLIssues:  true,
-		body : body
+        body : body
     ]
-        
+
     logger("sendAsyncHttpPut: ${requestParams}", "debug")
-    
+
     try{
         httpPut(requestParams)  //change to httpGet for the get test.
         {
           response ->
-	        if (response?.status == 200)
-	        {
+            if (response?.status == 200)
+            {
                 logger(response.data, "debug")
-		        return response.data
-	        }
-	        else
-	        {
+                return response.data
+            }
+            else
+            {
                 logger("httpPut ${response?.status}", "warn")
-	        }
+            }
         }
     } catch (org.apache.http.conn.HttpHostConnectException e) {
         logger("httpPut HttpHostConnectException ${e}", "error")
@@ -422,7 +454,7 @@ def sendAsyncHttpPut(message, body)
     } catch (Exception e){
         logger("httpPut Exception ${e}", "error")
         valueChangeEvent("presence", "not present", "")
-    }    
+    }
 }
 
 def sendAsyncHttpGet(message)
@@ -433,24 +465,24 @@ def sendAsyncHttpGet(message)
         uri:  "https://${settings.ip}/api/v1"+message,
         contentType: "application/json",
         headers: ["Authorization": "Bearer ${settings.api_key}"],
-        timeout: 200, 
+        timeout: 200,
         ignoreSSLIssues:  true
     ]
     logger("sendAsyncHttpGet: ${requestParams}", "debug")
- 
+
     try{
         httpGet(requestParams)  //change to httpGet for the get test.
         {
           response ->
-	        if (response?.status == 200)
-	        {
+            if (response?.status == 200)
+            {
                 logger(response.data, "debug")
-		        result = response.data
-	        }
-	        else
-	        {
-		        log.warn "${response?.status}"
-	        }
+                result = response.data
+            }
+            else
+            {
+                log.warn "${response?.status}"
+            }
         }
     } catch (org.apache.http.conn.HttpHostConnectException e) {
         logger("httpGet HttpHostConnectException ${e}", "error")
@@ -461,7 +493,7 @@ def sendAsyncHttpGet(message)
     } catch (Exception e){
         logger("httpGet Exception ${e}", "error")
         valueChangeEvent("presence", "not present", "")
-    }   
+    }
     return result
 }
 
