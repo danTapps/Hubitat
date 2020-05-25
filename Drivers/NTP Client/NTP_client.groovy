@@ -3,9 +3,9 @@
  *
  *  Name: NTP Client to retrieve Date/Time from local NTP server....
  *
- *  Date: 2020-04-27
+ *  Date: 2020-05-25
  *
- *  Version: 1.21-bab
+ *  Version: 1.22
  *
  *  Author: Daniel Terryn / Barry Burke
  *
@@ -35,6 +35,7 @@
  *                               - allow checks to be scheduled every 1/2/3/5...minutes
  *                               - randomize the seconds & minutes offset of schedule, so multiple instances(on multiple hubs) don't hit the timeserver at the same time
  *                               - optimize calls to logger; convert remaining double math to BigDecimal
+ *    2020-05-25  Dan Ogorchock  Fixed default value for NTP Server Port
  * 
  */
 
@@ -56,7 +57,7 @@ metadata {
     }
     preferences {
         input ( name: "ntpIP", type: "text", title: "NTP Server IP Address", description: "IP Address in form 192.168.1.226", required: true, displayDuringSetup: true )
-        input ( name: "ntpPort", type: "text", title: "NTP Server Port", description: "port in form of 123", required: true, displayDuringSetup: true, default: 123 )
+        input ( name: "ntpPort", type: "text", title: "NTP Server Port", description: "port in form of 123", required: true, displayDuringSetup: true, defaultValue: 123 )
         input ( name: "minTimeDiff", title: "Minimum time difference between Hub and NTP Server to update time.", type: "enum",
             options: [
 				500 : "1/2 Second",
