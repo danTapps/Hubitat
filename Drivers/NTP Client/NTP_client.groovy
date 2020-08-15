@@ -5,7 +5,7 @@
  *
  *  Date: 2020-04-27
  *
- *  Version: 1.21-bab
+ *  Version: 1.3
  *
  *  Author: Daniel Terryn / Barry Burke
  *
@@ -35,7 +35,7 @@
  *                               - allow checks to be scheduled every 1/2/3/5...minutes
  *                               - randomize the seconds & minutes offset of schedule, so multiple instances(on multiple hubs) don't hit the timeserver at the same time
  *                               - optimize calls to logger; convert remaining double math to BigDecimal
- * 
+ *    2019-09-22  Daniel Terryn  Version Bump to 1.3
  */
 
 def SECONDS_1900_TO_EPOCH() {return 2208988800.0 as BigDecimal}
