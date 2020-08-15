@@ -1,0 +1,16 @@
+{
+  "packageName": "NTP client",
+  "author": "dan.t",
+  "version": "1.3",
+  "minimumHEVersion": "2.1.5",
+  "dateReleased": "2019-09-25",
+  "drivers": [
+    {
+      "id": "c05be188-1a00-49c0-9fa7-ae6a534ab923",
+      "name": "NTP Client",
+      "namespace": "dan.t",
+      "location": "https://raw.githubusercontent.com/danTapps/Hubitat/master/Drivers/NTP%20Client/NTP_client.groovy",
+      "required": true
+    }
+  ]
+}
