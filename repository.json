@@ -1,0 +1,16 @@
+{
+  "author": "dan.t",
+  "gitHubUrl": "https://github.com/danTapps",
+  "packages": [
+		{
+			"name": "NTP Client",
+			"category": "Integrations",
+			"location": "https://raw.githubusercontent.com/danTapps/Hubitat/master/Drivers/NTP%20Client/packageManifest.json",
+			"description": "NTP Client to get time from local NTP Server",
+			"tags": [
+				"LAN",
+				"Tools & Utilities"
+			]
+		}
+	]
+}
