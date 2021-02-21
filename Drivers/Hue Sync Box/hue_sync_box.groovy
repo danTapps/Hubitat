@@ -5,7 +5,7 @@
  *
  *  Date: 2020-02-07
  *
- *  Version: 1.20
+ *  Version: 1.30
  *
  *  Author: Daniel Terryn
  *
@@ -28,6 +28,7 @@
  *    2020-02-07  Daniel Terryn  Original Creation
  *    2020-02-26  Daniel Terryn  Added reboot command, fixed Input 4
  *    2020-04-17  Mike Neir      Added powersave mode, added mode select for on/off actions, more complete switch state detection
+ *    2021-02-21  Daniel Terryn  added setBrightness
  *
  */
 
@@ -45,6 +46,7 @@ metadata {
         command "checkForUpdates"
         command "reboot"
         command "registerHueSyncBox"
+        command "setBrightness", ["brightness"] //creates a new supported Virtual Devices using minimal details
 
         attribute "brightness", "number"
         attribute "mode", "string"
@@ -365,6 +367,17 @@ def setItensity(mode, intensity)
     } catch (Exception e){
         logger("setItensity() exception ${e}", "error")
     }
+}
+
+def setBrightness(brightness)
+{
+    logger("Receive \"setBrightness(\"${brightness}\")\" command", "info")
+    try{
+        sendAsyncHttpPut("/execution", "{\"brightness\": ${brightness}}")
+        valueChangeEvent("brightness", brightness, "")
+    } catch (Exception e){
+        logger("setItensity() exception ${e}", "error")    
+    } 
 }
 
 def on() {
