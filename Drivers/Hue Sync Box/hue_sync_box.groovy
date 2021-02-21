@@ -46,7 +46,7 @@ metadata {
         command "checkForUpdates"
         command "reboot"
         command "registerHueSyncBox"
-        command "setBrightness", ["brightness"] //creates a new supported Virtual Devices using minimal details
+        command "setBrightness", ["brightness"] 
 
         attribute "brightness", "number"
         attribute "mode", "string"
